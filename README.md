@@ -19,36 +19,13 @@ Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Sist
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    IMU["MPU6050: acceleration + gyroscope"] -->|I2C| PI
-    ENV["Temperature, humidity and light sensors"] --> ADC["MCP3008 ADC"]
-    ADC -->|SPI| PI["Raspberry Pi: acquisition + step detector"]
-    PI --> JSON["Common JSON telemetry packet"]
-    JSON -->|"UDP 5005"| MON["Desktop: Matplotlib monitor"]
-    JSON -->|"UDP 5006"| CLOCK["Desktop: Tkinter clock face"]
-    classDef compute fill:#dbeafe,stroke:#2563eb,color:#0f172a;
-    classDef sensor fill:#dcfce7,stroke:#16a34a,color:#0f172a;
-    class PI,JSON,MON,CLOCK compute;
-    class IMU,ENV,ADC sensor;
-```
+![Raspberry Pi acquisition and two desktop UDP receivers](.codex/visuals/architecture.png)
 
 The desktop displays data acquired by the Pi; it is not the sensor acquisition device. The two interfaces receive the same packet on separate ports.
 
 ## From motion to steps
 
-```mermaid
-flowchart TD
-    REST["Initial calibration at rest"] --> SAMPLES["Nominal 50 Hz IMU sampling"]
-    SAMPLES --> FILTER["Motion features + vertical band-pass filtering"]
-    FILTER --> RHYTHM["Windowed rhythm, cadence and signal-quality features"]
-    RHYTHM --> STATE{"WALK or IDLE?"}
-    STATE -->|WALK| PEAKS["Peak threshold + timing + re-arm checks"]
-    STATE -->|IDLE| HOLD["Hold step counter"]
-    PEAKS --> COUNT["Accepted step events"]
-    COUNT --> PACKET["Steps + diagnostic features in telemetry"]
-    HOLD --> PACKET
-```
+![Calibration, filtering, gait detection and step-event acceptance](.codex/visuals/step_detection.png)
 
 This diagram summarises the implementation in [`enviar_informacion.py`](raspberry_pi/enviar_informacion.py), rather than a measured sensor trace. The gait filter uses a 0.7–3.0 Hz band and a 2.8-second analysis window. Sampling is configured at 50 Hz; effective acquisition frequency and step-count accuracy have not been measured in the repository preparation.
 
