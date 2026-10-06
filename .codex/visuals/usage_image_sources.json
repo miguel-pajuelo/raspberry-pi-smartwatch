@@ -1,0 +1,20 @@
+[
+  {
+    "repo": "Sistemas_Electronicos/Sistemas_Electronicos_GitHub",
+    "file": ".codex/visuals/usage_clock_day.png",
+    "origin": "documentacion/presentacion.pptx, slide 9, original daylight clock screenshot",
+    "sha256": "336ec40918681d4a7b6e436fc01b90a85d458c11b5e6f3134c76b0e7ef15a499"
+  },
+  {
+    "repo": "Sistemas_Electronicos/Sistemas_Electronicos_GitHub",
+    "file": ".codex/visuals/usage_clock_night.png",
+    "origin": "documentacion/presentacion.pptx, slide 9, original night-mode clock screenshot",
+    "sha256": "86e5cb4cc40041e52f7be5ab565e67dcc641ce95f6e6c2b54037280405aea70d"
+  },
+  {
+    "repo": "Sistemas_Electronicos/Sistemas_Electronicos_GitHub",
+    "file": ".codex/visuals/usage_signal_monitor.png",
+    "origin": "documentacion/presentacion.pptx, slide 7, original technical-monitor screenshot",
+    "sha256": "3114ff906b113c6c824e7c477a5cf165cd0246afbe61fc14663cd88cc137b8f9"
+  }
+]

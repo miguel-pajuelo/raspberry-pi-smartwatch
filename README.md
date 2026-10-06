@@ -8,7 +8,40 @@
 
 Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Sistemas Electrónicos*, ICAI, Universidad Pontificia Comillas. The repository contains the Raspberry Pi acquisition software and both desktop receivers from the selected submission.
 
-[Architecture](#architecture) · [Signal processing](#from-motion-to-steps) · [Hardware](#hardware-and-telemetry) · [Run it](#run-the-prototype) · [Presentation](documentacion/presentacion.pptx)
+[Usage examples](#the-prototype-in-use) · [Architecture](#architecture) · [Signal processing](#from-motion-to-steps) · [Hardware](#hardware-and-telemetry) · [Run it](#run-the-prototype) · [Presentation](documentacion/presentacion.pptx)
+
+## The prototype in use
+
+The practical goal is to combine motion and environmental sensing with a screen a user can read: a clock face for everyday information and a technical monitor for inspecting the detector.
+
+### Clock face: daylight mode
+
+![Original daylight smartwatch screen showing the time, temperature, humidity, steps and activity/connection states](.codex/visuals/usage_clock_day.png)
+
+The interface presents the time/date, step count, temperature, humidity and activity/connection states together. This original capture shows **IDLE** and **LIVE**; it does not demonstrate a measured step-count accuracy.
+
+<details>
+<summary><strong>Clock face: night mode</strong></summary>
+
+![Original night-mode smartwatch screen with green text on a black background](.codex/visuals/usage_clock_night.png)
+
+The alternate palette makes the clock's night mode visible. The application's mode-switch threshold is described below.
+
+</details>
+
+### Technical monitor: inspect the detector
+
+![Original technical monitor showing movement envelope, dynamic step threshold and environmental readings](.codex/visuals/usage_signal_monitor.png)
+
+The upper plot shows the movement envelope and WALK activation/deactivation thresholds. The lower plot shows the dynamic step signal and step threshold; the bottom strip presents the counter, environmental readings and detector state. The horizontal axis is **recent samples**, not elapsed seconds.
+
+All three images were extracted **unchanged** from the [original presentation](documentacion/presentacion.pptx): slide 9 for the clock screens and slide 7 for the technical monitor. They are historical interface evidence, not new hardware tests; their readings and thresholds can differ from the packaged version's calibration.
+
+| User action | What the prototype does | What the user sees |
+|---|---|---|
+| Start the receivers and then the Pi sender. | Calibrates at rest and streams the common telemetry packet. | Connection state and incoming readings on the desktop. |
+| Move with the sensor assembly. | Evaluates motion, gait state and accepted step events. | State and session step count, subject to the documented display gain. |
+| Inspect the technical window. | Plots motion features and thresholds alongside environmental values. | Signals that help explain the detector's current decision. |
 
 ## What the project demonstrates
 
