@@ -1,67 +1,130 @@
-# Reloj y podómetro con Raspberry Pi
+# Raspberry Pi Smartwatch and Pedometer Prototype
 
-Proyecto académico de **Miguel Pajuelo Gómez y Jorge Ois de Pascual** para Sistemas Electrónicos, ICAI, Universidad Pontificia Comillas.
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-A22846?logo=raspberrypi&logoColor=white)
+![Protocol](https://img.shields.io/badge/Telemetry-JSON_over_UDP-0f766e)
 
-Adquisición de señales inerciales y ambientales en una Raspberry Pi, detección de pasos y envío de telemetría JSON por UDP. El ordenador recibe los datos y muestra un visualizador técnico y una carátula de reloj.
+**A sensor-to-screen prototype: acquire motion and environmental signals, detect walking, count steps and stream telemetry to a desktop clock interface.**
 
-```text
-MPU6050 (I2C) + sensores analógicos (MCP3008 / SPI)
-          ↓
-Raspberry Pi: filtrado, detección de marcha y conteo de pasos
-          ├── UDP 5005 → ordenador/recibir_informacion.py
-          └── UDP 5006 → ordenador/caratula_reloj.py
+Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Sistemas Electrónicos*, ICAI, Universidad Pontificia Comillas. The repository contains the Raspberry Pi acquisition software and both desktop receivers from the selected submission.
+
+[Architecture](#architecture) · [Signal processing](#from-motion-to-steps) · [Hardware](#hardware-and-telemetry) · [Run it](#run-the-prototype) · [Presentation](documentacion/presentacion.pptx)
+
+## What the project demonstrates
+
+- **Hardware interfaces:** reading an MPU6050 over I2C and analog sensors through an MCP3008 ADC over SPI.
+- **Signal processing:** initial calibration, filtering, gait features and a WALK/IDLE detector before accepting step events.
+- **Networking:** serialising a common JSON packet and transmitting it to two UDP receivers.
+- **Desktop visualisation:** a Matplotlib technical monitor and a Tkinter clock face with environmental readings.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    IMU["MPU6050: acceleration + gyroscope"] -->|I2C| PI
+    ENV["Temperature, humidity and light sensors"] --> ADC["MCP3008 ADC"]
+    ADC -->|SPI| PI["Raspberry Pi: acquisition + step detector"]
+    PI --> JSON["Common JSON telemetry packet"]
+    JSON -->|"UDP 5005"| MON["Desktop: Matplotlib monitor"]
+    JSON -->|"UDP 5006"| CLOCK["Desktop: Tkinter clock face"]
+    classDef compute fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+    classDef sensor fill:#dcfce7,stroke:#16a34a,color:#0f172a;
+    class PI,JSON,MON,CLOCK compute;
+    class IMU,ENV,ADC sensor;
 ```
 
-## Contenido
+The desktop displays data acquired by the Pi; it is not the sensor acquisition device. The two interfaces receive the same packet on separate ports.
 
-| Carpeta | Componentes |
+## From motion to steps
+
+```mermaid
+flowchart TD
+    REST["Initial calibration at rest"] --> SAMPLES["Nominal 50 Hz IMU sampling"]
+    SAMPLES --> FILTER["Motion features + vertical band-pass filtering"]
+    FILTER --> RHYTHM["Windowed rhythm, cadence and signal-quality features"]
+    RHYTHM --> STATE{"WALK or IDLE?"}
+    STATE -->|WALK| PEAKS["Peak threshold + timing + re-arm checks"]
+    STATE -->|IDLE| HOLD["Hold step counter"]
+    PEAKS --> COUNT["Accepted step events"]
+    COUNT --> PACKET["Steps + diagnostic features in telemetry"]
+    HOLD --> PACKET
+```
+
+This diagram summarises the implementation in [`enviar_informacion.py`](raspberry_pi/enviar_informacion.py), rather than a measured sensor trace. The gait filter uses a 0.7–3.0 Hz band and a 2.8-second analysis window. Sampling is configured at 50 Hz; effective acquisition frequency and step-count accuracy have not been measured in the repository preparation.
+
+## Hardware and telemetry
+
+| Component | Software configuration |
 |---|---|
-| [raspberry_pi/](raspberry_pi/) | `enviar_informacion.py`, `leer_sensores_terminal.py` y dependencias para Raspberry. |
-| [ordenador/](ordenador/) | Recepción y gráficos con Matplotlib; interfaz Tkinter del reloj. |
-| [documentacion/](documentacion/) | [Presentación original](documentacion/presentacion.pptx). |
+| MPU6050 | I2C bus 1, address `0x68`; acceleration, angular velocity and sensor temperature. |
+| MCP3008 | SPI analog-to-digital conversion, 3.3 V reference. |
+| Analog channels | CH0 humidity, CH1 temperature, CH2 light. |
+| Network | Pi sends to `PC_IP`; receivers bind UDP ports 5005 and 5006. |
 
-Se elige el conjunto de la entrega para mantener juntos emisor y receptores de esa versión. El código de trabajo contiene otras calibraciones y se conserva en el archivo original. Consultar [PROCEDENCIA.md](PROCEDENCIA.md).
+Enable **I2C and SPI** in Raspberry Pi OS and check the physical assembly described in the [original presentation](documentacion/presentacion.pptx). The repository does not contain a separate wiring schematic absent from that submission.
 
-## Hardware y configuración
+The common packet has **32 top-level fields**, including timestamp/sequence, raw IMU axes, filtered motion features, `steps`, `walk_mode`, cadence and environmental values. A nested `raw` object contains analog voltages. The real packet builder and receiver parsers were checked together with synthetic telemetry; no live sensor measurements are presented as test results.
 
-El código usa el bus I2C 1 y un MPU6050 en la dirección `0x68`. El MCP3008 recibe humedad en CH0, temperatura en CH1 y luz en CH2; las conversiones toman una referencia de 3,3 V. Es necesario habilitar I2C y SPI en Raspberry Pi OS y comprobar el montaje descrito en la presentación. El repositorio conserva el software; no incluye un esquema de cableado independiente que no existía en la entrega.
+## Repository guide
 
-Crear un entorno Python en cada dispositivo. En la Raspberry, instalar las dependencias de `raspberry_pi/requirements.txt`; en el ordenador, las de `ordenador/requirements.txt`. Tkinter debe estar disponible en el Python del ordenador. En algunas distribuciones Linux se instala como paquete del sistema, por ejemplo `python3-tk`.
+| File | Purpose |
+|---|---|
+| [raspberry_pi/enviar_informacion.py](raspberry_pi/enviar_informacion.py) | IMU/analog acquisition, calibration, step detection and UDP transmission. |
+| [raspberry_pi/leer_sensores_terminal.py](raspberry_pi/leer_sensores_terminal.py) | Inspect analog sensor readings in the terminal. |
+| [ordenador/recibir_informacion.py](ordenador/recibir_informacion.py) | Receive telemetry and display diagnostic charts. |
+| [ordenador/caratula_reloj.py](ordenador/caratula_reloj.py) | Clock face, displayed steps and environmental indicators. |
+| [documentacion/presentacion.pptx](documentacion/presentacion.pptx) | Original hardware/software presentation. |
 
-```sh
+## Run the prototype
+
+Use a separate Python environment on each device and keep the Pi still during initial calibration. Both devices must be able to exchange UDP traffic on the configured ports.
+
+### 1. Start the desktop receivers
+
+PowerShell, from the repository root:
+
+```powershell
 python -m venv .venv
-# Activar el entorno del dispositivo antes de instalar:
-# Windows: .venv\Scripts\Activate.ps1
-# Linux:   . .venv/bin/activate
+.\.venv\Scripts\python.exe -m pip install -r ordenador/requirements.txt
+.\.venv\Scripts\python.exe ordenador/recibir_informacion.py
 ```
 
-En la Raspberry:
+In a second terminal, from the same directory:
+
+```powershell
+.\.venv\Scripts\python.exe ordenador/caratula_reloj.py
+```
+
+Tkinter must be available in the desktop Python installation. On Linux, the system package may be `python3-tk`; use `.venv/bin/python` for the receiver commands.
+
+### 2. Start acquisition on the Raspberry Pi
+
+From the repository root on the Pi:
 
 ```sh
-python -m pip install -r raspberry_pi/requirements.txt
-export PC_IP=IP_DEL_ORDENADOR
-python raspberry_pi/enviar_informacion.py
+python3 -m venv .venv
+.venv/bin/python -m pip install -r raspberry_pi/requirements.txt
+export PC_IP=IP_OF_THE_DESKTOP
+.venv/bin/python raspberry_pi/enviar_informacion.py
 ```
 
-Mantener el dispositivo en reposo durante la calibración inicial. El valor por defecto de `PC_IP` es `127.0.0.1`, de modo que hay que configurar la IP del ordenador para comunicar dos dispositivos. `.env.example` documenta la variable y no se carga automáticamente.
+`PC_IP` defaults to `127.0.0.1`, so set the desktop's actual IP when using two devices. [.env.example](.env.example) documents this variable; it is not read automatically.
 
-En el ordenador, abrir dos terminales si se quieren usar ambas ventanas:
+For analog-only inspection on the Pi:
 
 ```sh
-python -m pip install -r ordenador/requirements.txt
-python ordenador/recibir_informacion.py
+.venv/bin/python raspberry_pi/leer_sensores_terminal.py
 ```
 
-```sh
-python ordenador/caratula_reloj.py
-```
+## Interpretation and validation
 
-Ambos equipos deben poder intercambiar UDP en los puertos 5005 y 5006. Para revisar solamente los sensores analógicos, ejecutar `python raspberry_pi/leer_sensores_terminal.py` en la Raspberry.
+| Behaviour | What to expect |
+|---|---|
+| Displayed steps | Receivers show session-relative steps and apply `STEP_DISPLAY_GAIN = 1.3`; this differs from the raw sender counter. |
+| Environmental conversion | Includes the empirical temperature/humidity adjustments used in the submission. |
+| Clock night mode | Effective light threshold is 15%; an introductory code comment mentions 40%. |
+| Clock typography | Requests `Digital-7` when installed; otherwise the system may substitute a font. The font file is not redistributed. |
 
-## Interpretación y límites
+All four Python scripts were parsed successfully, and packet construction/parsing was checked without opening GUI windows, UDP sockets, I2C or SPI. These checks do not establish physical accuracy or a successful two-device run. See [VALIDACION.md](VALIDACION.md) for details.
 
-El emisor configura una adquisición nominal de 50 Hz y transmite aceleración, velocidad angular, magnitudes filtradas, pasos, estado WALK/IDLE y medidas ambientales. La entrega incluye correcciones empíricas de temperatura y humedad. Los receptores muestran pasos relativos a la sesión y aplican `STEP_DISPLAY_GAIN = 1.3`; la cifra visualizada no equivale directamente al contador bruto del emisor.
-
-La carátula solicita la familia de fuente `Digital-7` si está instalada. La tipografía no se redistribuye aquí: la interfaz puede utilizar la sustitución del sistema. El cambio de modo nocturno depende de la luz; el umbral efectivo del código es 15 %, aunque parte de su comentario introductorio menciona 40 %.
-
-La preparación de la carpeta no certifica precisión del podómetro, frecuencia efectiva de adquisición ni calibración del montaje. [VALIDACION.md](VALIDACION.md) recoge las comprobaciones de software y la ausencia de una prueba en hardware.
+The working archive contains other calibrations. This repository retains one coherent submission version instead of mixing sender/receiver versions; [PROCEDENCIA.md](PROCEDENCIA.md) records that selection.
