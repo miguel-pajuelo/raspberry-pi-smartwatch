@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.conda/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+desktop.ini
+Thumbs.db
+.DS_Store
+*.ova
+*.zip
+*.log
